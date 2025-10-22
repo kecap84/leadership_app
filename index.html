@@ -69,19 +69,18 @@
             padding: 10px;
         }
         
-        #changeLogoBtn {
-            margin-top: 8px;
-            padding: 5px 10px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
+        .logo-selector {
+            margin-top: 10px;
+            text-align: center;
         }
         
-        #changeLogoBtn:hover {
-            background-color: #2980b9;
+        .logo-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 100%;
+            background: white;
         }
         
         .header-section h1 {
@@ -203,6 +202,14 @@
             font-size: 12px;
             min-width: auto;
             flex: 1;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .signature-buttons button:hover {
+            background-color: #2980b9;
         }
         .signature-name {
             width: 100%;
@@ -221,7 +228,7 @@
         .button-group {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-between;
+            justify-content: center;
             margin-top: 25px;
             gap: 10px;
         }
@@ -243,30 +250,10 @@
         button i {
             font-size: 16px;
         }
-        #saveBtn {
-            background-color: #2ecc71;
-            color: white;
-        }
-        #saveBtn:hover {
-            background-color: #27ae60;
-        }
-        #loadBtn {
-            background-color: #3498db;
-            color: white;
-        }
-        #loadBtn:hover {
-            background-color: #2980b9;
-        }
-        #resetBtn {
-            background-color: #e74c3c;
-            color: white;
-        }
-        #resetBtn:hover {
-            background-color: #c0392b;
-        }
         #exportBtn {
             background-color: #f39c12;
             color: white;
+            max-width: 300px;
         }
         #exportBtn:hover {
             background-color: #d35400;
@@ -368,11 +355,16 @@
         <!-- HEADER DENGAN LOGO -->
         <div class="header-section">
             <div class="logo-container">
-                <input type="file" id="logoInput" accept="image/*" style="display: none;">
                 <div id="logoPreview">
-                    <div class="logo-placeholder">Klik untuk tambahkan logo</div>
+                    <div class="logo-placeholder">Pilih logo perusahaan</div>
                 </div>
-                <button type="button" id="changeLogoBtn" style="display: none;">Ganti Logo</button>
+                <div class="logo-selector">
+                    <select id="companySelect">
+                        <option value="">-- Pilih Perusahaan --</option>
+                        <option value="pt_abc">PT_SSS</option>
+                        <option value="pt_xyz">PT_GSM</option>
+                    </select>
+                </div>
             </div>
             <h1>LEADERSHIP ACTIVITY</h1>
         </div>
@@ -539,23 +531,16 @@
             </div>
 
             <div class="button-group">
-                <button type="button" id="saveBtn">
-                    <i>💾</i> Simpan
-                </button>
-                <button type="button" id="loadBtn">
-                    <i>📂</i> Muat Data
-                </button>
-                <button type="button" id="resetBtn">
-                    <i>🔄</i> Reset
-                </button>
                 <button type="button" id="exportBtn">
-                    <i>📄</i> Ekspor PDF
+                    <i>📄</i> Simpan sebagai PDF
                 </button>
             </div>
         </form>
         
         <div class="app-info">
-            Aplikasi Formulir ACTIVITY - Dapat digunakan secara offline
+            <p></p>
+            <p>Form Leadership Activity</p>
+            <p>- Yan -</p>
         </div>
     </div>
 
@@ -568,11 +553,15 @@
             
             // Elemen form
             const form = document.getElementById('ACTIVITYForm');
-            const saveBtn = document.getElementById('saveBtn');
-            const loadBtn = document.getElementById('loadBtn');
-            const resetBtn = document.getElementById('resetBtn');
             const exportBtn = document.getElementById('exportBtn');
             const notification = document.getElementById('notification');
+            const companySelect = document.getElementById('companySelect');
+            
+            // Data logo perusahaan
+            const companyLogos = {
+                'pt_abc': "https://i.ibb.co.com/j9ZFQT0h/SSS-LOGO.png",
+                'pt_xyz': "https://i.ibb.co.com/Ndxzv5S9/GSM-LOGO.png"
+            };
             
             // Variabel untuk menyimpan data foto, logo, dan tanda tangan
             let photoData = null;
@@ -591,6 +580,20 @@
             document.getElementById('pjo_tgl').value = today;
             document.getElementById('hcga_tgl').value = today;
             
+            // Event listener untuk dropdown pemilihan perusahaan
+            companySelect.addEventListener('change', function() {
+                const selectedCompany = this.value;
+                if (selectedCompany && companyLogos[selectedCompany]) {
+                    logoData = companyLogos[selectedCompany];
+                    showLogoPreview(logoData);
+                    showNotification(`Logo ${companySelect.options[companySelect.selectedIndex].text} dipilih!`);
+                } else {
+                    logoData = null;
+                    document.getElementById('logoPreview').innerHTML = '<div class="logo-placeholder">Pilih logo perusahaan</div>';
+                    document.getElementById('logoPreview').style.border = '2px dashed #3498db';
+                }
+            });
+            
             // Inisialisasi Signature Pad
             const signaturePads = {};
             const signatureCanvases = {
@@ -606,23 +609,8 @@
                 const container = canvas.parentElement;
                 
                 // Set canvas size
-                // set size based on container computed size to handle responsive
-                function resizeCanvas() {
-                    const rect = container.getBoundingClientRect();
-                    canvas.width = Math.max(300, rect.width * devicePixelRatio);
-                    canvas.height = Math.max(120, rect.height * devicePixelRatio);
-                    // scale down style to fit container
-                    canvas.style.width = rect.width + 'px';
-                    canvas.style.height = rect.height + 'px';
-                    // If signature pad exists, clear to avoid distortion
-                    if (signaturePads[key]) {
-                        signaturePads[key].clear();
-                    }
-                }
-                // initial resize
-                resizeCanvas();
-                // also resize on window resize
-                window.addEventListener('resize', resizeCanvas);
+                canvas.width = container.offsetWidth;
+                canvas.height = container.offsetHeight;
                 
                 // Initialize Signature Pad
                 signaturePads[key] = new SignaturePad(canvas, {
@@ -658,33 +646,9 @@
                         showNotification('Tanda tangan masih kosong!', 'error');
                         return;
                     }
-                    // Simpan dengan ukuran yang wajar (convert to dataURL)
-                    // toDataURL akan menggunakan canvas internal size (devicePixelRatio handled)
-                    signatures[target] = signaturePads[target].toDataURL('image/png');
+                    signatures[target] = signaturePads[target].toDataURL();
                     showNotification(`Tanda tangan ${target} disimpan!`);
                 });
-            });
-            
-            // Event listener untuk logo
-            document.getElementById('logoPreview').addEventListener('click', function() {
-                document.getElementById('logoInput').click();
-            });
-            
-            document.getElementById('logoInput').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        logoData = e.target.result;
-                        showLogoPreview(logoData);
-                        document.getElementById('changeLogoBtn').style.display = 'block';
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-            
-            document.getElementById('changeLogoBtn').addEventListener('click', function() {
-                document.getElementById('logoInput').click();
             });
             
             // Event listener untuk input foto
@@ -697,42 +661,6 @@
                         showPhotoPreview(photoData);
                     };
                     reader.readAsDataURL(file);
-                }
-            });
-            
-            // Simpan data ke localStorage
-            saveBtn.addEventListener('click', function() {
-                const formData = collectFormData();
-                localStorage.setItem('ACTIVITYFormData', JSON.stringify(formData));
-                showNotification('Data berhasil disimpan!');
-            });
-            
-            // Muat data dari localStorage
-            loadBtn.addEventListener('click', function() {
-                const savedData = localStorage.getItem('ACTIVITYFormData');
-                if (savedData) {
-                    const formData = JSON.parse(savedData);
-                    populateForm(formData);
-                    showNotification('Data berhasil dimuat!');
-                } else {
-                    showNotification('Tidak ada data yang tersimpan.', 'error');
-                }
-            });
-            
-            // Reset form
-            resetBtn.addEventListener('click', function() {
-                if (confirm('Apakah Anda yakin ingin mereset form? Semua data yang belum disimpan akan hilang.')) {
-                    form.reset();
-                    // Reset foto, logo, dan tanda tangan
-                    removePhoto();
-                    removeLogo();
-                    resetSignatures();
-                    // Set tanggal kembali ke hari ini
-                    document.getElementById('atasan_tgl').value = today;
-                    document.getElementById('karyawan_tgl').value = today;
-                    document.getElementById('pjo_tgl').value = today;
-                    document.getElementById('hcga_tgl').value = today;
-                    showNotification('Form telah direset!');
                 }
             });
             
@@ -787,97 +715,11 @@
                 return formData;
             }
             
-            // Fungsi untuk mengisi form dengan data
-            function populateForm(data) {
-                // ACTIVITY (checkbox)
-                document.querySelectorAll('input[name="ACTIVITY"]').forEach(cb => {
-                    cb.checked = data.ACTIVITY && data.ACTIVITY.includes(cb.value);
-                });
-                
-                // Data karyawan
-                document.getElementById('nik').value = data.nik || '';
-                document.getElementById('departemen').value = data.departemen || '';
-                document.getElementById('nama').value = data.nama || '';
-                document.getElementById('lokasi').value = data.lokasi || '';
-                document.getElementById('jabatan').value = data.jabatan || '';
-                document.getElementById('tanggal_masuk').value = data.tanggal_masuk || '';
-                
-                // Masalah, tindak lanjut, komitmen, catatan
-                document.getElementById('masalah').value = data.masalah || '';
-                document.getElementById('tindak_lanjut').value = data.tindak_lanjut || '';
-                document.getElementById('komitmen').value = data.komitmen || '';
-                document.getElementById('catatan').value = data.catatan || '';
-                
-                // Load foto jika ada
-                if (data.photo) {
-                    photoData = data.photo;
-                    showPhotoPreview(photoData);
-                }
-                
-                // Load logo jika ada
-                if (data.logo) {
-                    logoData = data.logo;
-                    showLogoPreview(logoData);
-                    document.getElementById('changeLogoBtn').style.display = 'block';
-                }
-                
-                // Load tanda tangan jika ada
-                if (data.signatures) {
-                    signatures = data.signatures;
-                    Object.keys(signatures).forEach(key => {
-                        if (signatures[key]) {
-                            // Use fromDataURL only if signaturePads[key] exists
-                            if (signaturePads[key] && signaturePads[key].fromDataURL) {
-                                signaturePads[key].fromDataURL(signatures[key]);
-                            }
-                            // Sembunyikan instruksi jika sudah ada tanda tangan
-                            const container = signatureCanvases[key].parentElement;
-                            container.querySelector('.signature-instruction').style.display = 'none';
-                        }
-                    });
-                }
-                
-                // Tanda tangan - nama dan tanggal
-                document.getElementById('atasan_nama').value = data.atasan_nama || '';
-                document.getElementById('atasan_tgl').value = data.atasan_tgl || '';
-                document.getElementById('karyawan_nama').value = data.karyawan_nama || '';
-                document.getElementById('karyawan_tgl').value = data.karyawan_tgl || '';
-                document.getElementById('pjo_nama').value = data.pjo_nama || '';
-                document.getElementById('pjo_tgl').value = data.pjo_tgl || '';
-                document.getElementById('hcga_nama').value = data.hcga_nama || '';
-                document.getElementById('hcga_tgl').value = data.hcga_tgl || '';
-            }
-            
             // Fungsi untuk menampilkan preview logo
             function showLogoPreview(dataUrl) {
                 const preview = document.getElementById('logoPreview');
                 preview.innerHTML = `<img src="${dataUrl}" alt="Logo Perusahaan">`;
                 preview.style.border = '2px solid #2ecc71';
-            }
-            
-            // Fungsi untuk menghapus logo
-            function removeLogo() {
-                logoData = null;
-                document.getElementById('logoInput').value = '';
-                document.getElementById('logoPreview').innerHTML = '<div class="logo-placeholder">Klik untuk tambahkan logo</div>';
-                document.getElementById('changeLogoBtn').style.display = 'none';
-                document.getElementById('logoPreview').style.border = '2px dashed #3498db';
-            }
-            
-            // Fungsi untuk reset semua tanda tangan
-            function resetSignatures() {
-                Object.keys(signaturePads).forEach(key => {
-                    signaturePads[key].clear();
-                    // Tampilkan instruksi
-                    const container = signatureCanvases[key].parentElement;
-                    container.querySelector('.signature-instruction').style.display = 'block';
-                });
-                signatures = {
-                    atasan: null,
-                    karyawan: null,
-                    pjo: null,
-                    hcga: null
-                };
             }
             
             // Fungsi untuk menampilkan preview foto
@@ -911,13 +753,18 @@
                 }, 4000);
             }
             
-            // ======== Perbaikan ekspor PDF: gunakan preview (datauri) + tombol download ========
+            // Fungsi untuk ekspor ke PDF
             function exportToPDF() {
+                // Tampilkan notifikasi proses
                 showNotification('Membuat PDF...');
+                
+                // Ambil data form
                 const formData = collectFormData();
+                
+                // Buat PDF
                 const pdf = new jsPDF('p', 'mm', 'a4');
-
-                // Build HTML content (sama seperti sebelumnya)
+                
+                // Halaman 1: Formulir dengan logo dan tanda tangan
                 let content = `
                     <div style="display: flex; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
                         ${formData.logo ? `
@@ -942,7 +789,7 @@
                             </td>
                         </tr>
                     </table>
-                    <!-- (konten data karyawan, masalah, tindak lanjut, komitmen, catatan, tanda tangan sama seperti sebelumnya) -->
+                    
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
                         <tr>
                             <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">Data Karyawan</th>
@@ -1045,8 +892,8 @@
                         </div>
                     </div>
                 `;
-
-                // Buat container untuk halaman 1 (keterangan style agar html2canvas render mirip A4)
+                
+                // Buat container untuk halaman 1
                 const page1Container = document.createElement('div');
                 page1Container.style.width = '210mm';
                 page1Container.style.padding = '15mm';
@@ -1057,7 +904,7 @@
                 page1Container.style.background = 'white';
                 page1Container.innerHTML = content;
                 document.body.appendChild(page1Container);
-
+                
                 // Konversi halaman 1 ke canvas
                 html2canvas(page1Container, {
                     scale: 2,
@@ -1065,20 +912,19 @@
                     logging: false
                 }).then(canvas1 => {
                     const imgData1 = canvas1.toDataURL('image/png');
-                    const imgWidth = 210; // mm for A4 in jsPDF units
-                    const pxPerMm = canvas1.width / 210; // used for height calculation
+                    const imgWidth = 210;
                     const imgHeight1 = canvas1.height * imgWidth / canvas1.width;
-
+                    
                     // Tambahkan halaman 1 ke PDF
                     pdf.addImage(imgData1, 'PNG', 0, 0, imgWidth, imgHeight1);
-
+                    
                     // Hapus container halaman 1
                     document.body.removeChild(page1Container);
-
+                    
                     // Halaman 2: Foto (jika ada)
                     if (formData.photo) {
                         pdf.addPage();
-
+                        
                         const page2Container = document.createElement('div');
                         page2Container.style.width = '210mm';
                         page2Container.style.padding = '20mm';
@@ -1092,9 +938,9 @@
                             <h2 style="margin-bottom: 30px;">BUKTI PERTEMUAN (FOTO)</h2>
                             <img src="${formData.photo}" style="max-width: 160mm; max-height: 190mm; width: auto; height: auto; border: 1px solid #ccc;" alt="Bukti Foto Pertemuan">
                         `;
-
+                        
                         document.body.appendChild(page2Container);
-
+                        
                         // Konversi halaman 2 ke canvas
                         return html2canvas(page2Container, {
                             scale: 2,
@@ -1103,98 +949,30 @@
                         }).then(canvas2 => {
                             const imgData2 = canvas2.toDataURL('image/png');
                             const imgHeight2 = canvas2.height * imgWidth / canvas2.width;
-
+                            
                             // Tambahkan halaman 2 ke PDF
                             pdf.addImage(imgData2, 'PNG', 0, 0, imgWidth, imgHeight2);
-
+                            
                             // Hapus container halaman 2
                             document.body.removeChild(page2Container);
-
-                            // Setelah semua halaman siap -> tampilkan preview (datauri) dan tombol download
-                            const safeName = (formData.nama || 'Karyawan').replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-                            const fileName = `Formulir_ACTIVITY_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-                            // menggunakan datauristring untuk preview (aman di WebView / APK)
-                            pdf.output('datauristring').then(function(dataUri) {
-                                openPreviewWithDownload(dataUri, fileName);
-                                showNotification('Preview PDF siap. Tekan Download jika ingin menyimpan.');
-                            });
-
+                            
+                            // Simpan PDF
+                            const fileName = `Formulir_ACTIVITY_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+                            pdf.save(fileName);
+                            
+                            showNotification('PDF berhasil diunduh!');
                         });
                     } else {
-                        // Tidak ada foto, langsung tampilkan preview + download
-                        const safeName = (formData.nama || 'Karyawan').replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-                        const fileName = `Formulir_ACTIVITY_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
-
-                        pdf.output('datauristring').then(function(dataUri) {
-                            openPreviewWithDownload(dataUri, fileName);
-                            showNotification('Preview PDF siap. Tekan Download jika ingin menyimpan.');
-                        });
+                        // Simpan PDF tanpa foto
+                        const fileName = `Formulir_ACTIVITY_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+                        pdf.save(fileName);
+                        
+                        showNotification('PDF berhasil diunduh!');
                     }
                 }).catch(error => {
                     console.error('Error generating PDF:', error);
                     showNotification('Terjadi kesalahan saat membuat PDF.', 'error');
                 });
-            }
-
-            // Buka preview PDF di tab baru dan sediakan tombol download (lebih aman untuk WebView)
-            function openPreviewWithDownload(dataUri, fileName) {
-                try {
-                    const w = window.open();
-                    // jika window blocked atau null, fallback: buat link download di halaman utama
-                    if (!w) {
-                        // fallback: buat link download di DOM sementara
-                        const a = document.createElement('a');
-                        a.href = dataUri;
-                        a.download = fileName;
-                        a.style.display = 'none';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        showNotification('Download dimulai (fallback).');
-                        return;
-                    }
-
-                    // Tuliskan HTML preview + tombol download
-                    w.document.write(`
-                        <!doctype html>
-                        <html>
-                          <head>
-                            <meta charset="utf-8">
-                            <title>Preview PDF - ${fileName}</title>
-                            <meta name="viewport" content="width=device-width, initial-scale=1">
-                            <style>
-                              body { margin:0; font-family: Arial, sans-serif; background:#f0f0f0; }
-                              .wrap { display:flex; flex-direction:column; height:100vh; }
-                              .frame { flex:1; border: none; }
-                              .controls { padding:10px; text-align:center; background:#fff; box-shadow:0 -2px 6px rgba(0,0,0,0.08); }
-                              .btn { display:inline-block; padding:10px 18px; background:#007bff; color:#fff; border-radius:6px; text-decoration:none; font-weight:600; }
-                            </style>
-                          </head>
-                          <body>
-                            <div class="wrap">
-                              <iframe class="frame" src="${dataUri}"></iframe>
-                              <div class="controls">
-                                <a class="btn" id="downloadBtn" href="${dataUri}" download="${fileName}">Download PDF</a>
-                              </div>
-                            </div>
-                          </body>
-                        </html>
-                    `);
-                    w.document.close();
-                } catch (e) {
-                    console.error('openPreviewWithDownload error:', e);
-                    showNotification('Gagal membuka preview. Silakan coba unduh langsung.', 'error');
-                }
-            }
-
-            // Cek apakah ada data tersimpan saat halaman dimuat
-            const savedData = localStorage.getItem('ACTIVITYFormData');
-            if (savedData) {
-                if (confirm('Ada data yang tersimpan. Apakah Anda ingin memuatnya?')) {
-                    const formData = JSON.parse(savedData);
-                    populateForm(formData);
-                }
             }
         });
     </script>
