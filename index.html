@@ -606,8 +606,23 @@
                 const container = canvas.parentElement;
                 
                 // Set canvas size
-                canvas.width = container.offsetWidth;
-                canvas.height = container.offsetHeight;
+                // set size based on container computed size to handle responsive
+                function resizeCanvas() {
+                    const rect = container.getBoundingClientRect();
+                    canvas.width = Math.max(300, rect.width * devicePixelRatio);
+                    canvas.height = Math.max(120, rect.height * devicePixelRatio);
+                    // scale down style to fit container
+                    canvas.style.width = rect.width + 'px';
+                    canvas.style.height = rect.height + 'px';
+                    // If signature pad exists, clear to avoid distortion
+                    if (signaturePads[key]) {
+                        signaturePads[key].clear();
+                    }
+                }
+                // initial resize
+                resizeCanvas();
+                // also resize on window resize
+                window.addEventListener('resize', resizeCanvas);
                 
                 // Initialize Signature Pad
                 signaturePads[key] = new SignaturePad(canvas, {
@@ -643,7 +658,9 @@
                         showNotification('Tanda tangan masih kosong!', 'error');
                         return;
                     }
-                    signatures[target] = signaturePads[target].toDataURL();
+                    // Simpan dengan ukuran yang wajar (convert to dataURL)
+                    // toDataURL akan menggunakan canvas internal size (devicePixelRatio handled)
+                    signatures[target] = signaturePads[target].toDataURL('image/png');
                     showNotification(`Tanda tangan ${target} disimpan!`);
                 });
             });
@@ -809,7 +826,10 @@
                     signatures = data.signatures;
                     Object.keys(signatures).forEach(key => {
                         if (signatures[key]) {
-                            signaturePads[key].fromDataURL(signatures[key]);
+                            // Use fromDataURL only if signaturePads[key] exists
+                            if (signaturePads[key] && signaturePads[key].fromDataURL) {
+                                signaturePads[key].fromDataURL(signatures[key]);
+                            }
                             // Sembunyikan instruksi jika sudah ada tanda tangan
                             const container = signatureCanvases[key].parentElement;
                             container.querySelector('.signature-instruction').style.display = 'none';
@@ -891,18 +911,13 @@
                 }, 4000);
             }
             
-            // Fungsi untuk ekspor ke PDF
+            // ======== Perbaikan ekspor PDF: gunakan preview (datauri) + tombol download ========
             function exportToPDF() {
-                // Tampilkan notifikasi proses
                 showNotification('Membuat PDF...');
-                
-                // Ambil data form
                 const formData = collectFormData();
-                
-                // Buat PDF
                 const pdf = new jsPDF('p', 'mm', 'a4');
-                
-                // Halaman 1: Formulir dengan logo dan tanda tangan
+
+                // Build HTML content (sama seperti sebelumnya)
                 let content = `
                     <div style="display: flex; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
                         ${formData.logo ? `
@@ -927,7 +942,7 @@
                             </td>
                         </tr>
                     </table>
-                    
+                    <!-- (konten data karyawan, masalah, tindak lanjut, komitmen, catatan, tanda tangan sama seperti sebelumnya) -->
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
                         <tr>
                             <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">Data Karyawan</th>
@@ -1030,8 +1045,8 @@
                         </div>
                     </div>
                 `;
-                
-                // Buat container untuk halaman 1
+
+                // Buat container untuk halaman 1 (keterangan style agar html2canvas render mirip A4)
                 const page1Container = document.createElement('div');
                 page1Container.style.width = '210mm';
                 page1Container.style.padding = '15mm';
@@ -1042,7 +1057,7 @@
                 page1Container.style.background = 'white';
                 page1Container.innerHTML = content;
                 document.body.appendChild(page1Container);
-                
+
                 // Konversi halaman 1 ke canvas
                 html2canvas(page1Container, {
                     scale: 2,
@@ -1050,19 +1065,20 @@
                     logging: false
                 }).then(canvas1 => {
                     const imgData1 = canvas1.toDataURL('image/png');
-                    const imgWidth = 210;
+                    const imgWidth = 210; // mm for A4 in jsPDF units
+                    const pxPerMm = canvas1.width / 210; // used for height calculation
                     const imgHeight1 = canvas1.height * imgWidth / canvas1.width;
-                    
+
                     // Tambahkan halaman 1 ke PDF
                     pdf.addImage(imgData1, 'PNG', 0, 0, imgWidth, imgHeight1);
-                    
+
                     // Hapus container halaman 1
                     document.body.removeChild(page1Container);
-                    
+
                     // Halaman 2: Foto (jika ada)
                     if (formData.photo) {
                         pdf.addPage();
-                        
+
                         const page2Container = document.createElement('div');
                         page2Container.style.width = '210mm';
                         page2Container.style.padding = '20mm';
@@ -1076,9 +1092,9 @@
                             <h2 style="margin-bottom: 30px;">BUKTI PERTEMUAN (FOTO)</h2>
                             <img src="${formData.photo}" style="max-width: 160mm; max-height: 190mm; width: auto; height: auto; border: 1px solid #ccc;" alt="Bukti Foto Pertemuan">
                         `;
-                        
+
                         document.body.appendChild(page2Container);
-                        
+
                         // Konversi halaman 2 ke canvas
                         return html2canvas(page2Container, {
                             scale: 2,
@@ -1087,32 +1103,91 @@
                         }).then(canvas2 => {
                             const imgData2 = canvas2.toDataURL('image/png');
                             const imgHeight2 = canvas2.height * imgWidth / canvas2.width;
-                            
+
                             // Tambahkan halaman 2 ke PDF
                             pdf.addImage(imgData2, 'PNG', 0, 0, imgWidth, imgHeight2);
-                            
+
                             // Hapus container halaman 2
                             document.body.removeChild(page2Container);
-                            
-                            // Simpan PDF
-                            const fileName = `Formulir_ACTIVITY_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-                            pdf.save(fileName);
-                            
-                            showNotification('PDF berhasil diunduh!');
+
+                            // Setelah semua halaman siap -> tampilkan preview (datauri) dan tombol download
+                            const safeName = (formData.nama || 'Karyawan').replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
+                            const fileName = `Formulir_ACTIVITY_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+                            // menggunakan datauristring untuk preview (aman di WebView / APK)
+                            pdf.output('datauristring').then(function(dataUri) {
+                                openPreviewWithDownload(dataUri, fileName);
+                                showNotification('Preview PDF siap. Tekan Download jika ingin menyimpan.');
+                            });
+
                         });
                     } else {
-                        // Simpan PDF tanpa foto
-                        const fileName = `Formulir_ACTIVITY_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-                        pdf.save(fileName);
-                        
-                        showNotification('PDF berhasil diunduh!');
+                        // Tidak ada foto, langsung tampilkan preview + download
+                        const safeName = (formData.nama || 'Karyawan').replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
+                        const fileName = `Formulir_ACTIVITY_${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+                        pdf.output('datauristring').then(function(dataUri) {
+                            openPreviewWithDownload(dataUri, fileName);
+                            showNotification('Preview PDF siap. Tekan Download jika ingin menyimpan.');
+                        });
                     }
                 }).catch(error => {
                     console.error('Error generating PDF:', error);
                     showNotification('Terjadi kesalahan saat membuat PDF.', 'error');
                 });
             }
-            
+
+            // Buka preview PDF di tab baru dan sediakan tombol download (lebih aman untuk WebView)
+            function openPreviewWithDownload(dataUri, fileName) {
+                try {
+                    const w = window.open();
+                    // jika window blocked atau null, fallback: buat link download di halaman utama
+                    if (!w) {
+                        // fallback: buat link download di DOM sementara
+                        const a = document.createElement('a');
+                        a.href = dataUri;
+                        a.download = fileName;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        showNotification('Download dimulai (fallback).');
+                        return;
+                    }
+
+                    // Tuliskan HTML preview + tombol download
+                    w.document.write(`
+                        <!doctype html>
+                        <html>
+                          <head>
+                            <meta charset="utf-8">
+                            <title>Preview PDF - ${fileName}</title>
+                            <meta name="viewport" content="width=device-width, initial-scale=1">
+                            <style>
+                              body { margin:0; font-family: Arial, sans-serif; background:#f0f0f0; }
+                              .wrap { display:flex; flex-direction:column; height:100vh; }
+                              .frame { flex:1; border: none; }
+                              .controls { padding:10px; text-align:center; background:#fff; box-shadow:0 -2px 6px rgba(0,0,0,0.08); }
+                              .btn { display:inline-block; padding:10px 18px; background:#007bff; color:#fff; border-radius:6px; text-decoration:none; font-weight:600; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="wrap">
+                              <iframe class="frame" src="${dataUri}"></iframe>
+                              <div class="controls">
+                                <a class="btn" id="downloadBtn" href="${dataUri}" download="${fileName}">Download PDF</a>
+                              </div>
+                            </div>
+                          </body>
+                        </html>
+                    `);
+                    w.document.close();
+                } catch (e) {
+                    console.error('openPreviewWithDownload error:', e);
+                    showNotification('Gagal membuka preview. Silakan coba unduh langsung.', 'error');
+                }
+            }
+
             // Cek apakah ada data tersimpan saat halaman dimuat
             const savedData = localStorage.getItem('ACTIVITYFormData');
             if (savedData) {
