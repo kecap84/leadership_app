@@ -366,6 +366,22 @@
             font-size: 12px;
             line-height: 1.4;
         }
+        
+        /* Loading indicator */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -712,7 +728,7 @@
                 }
             });
             
-            // Ekspor ke PDF
+            // Ekspor ke PDF - MODIFIKASI UTAMA DI SINI
             exportBtn.addEventListener('click', function() {
                 // Simpan semua tanda tangan terlebih dahulu
                 Object.keys(signaturePads).forEach(key => {
@@ -720,7 +736,17 @@
                         signatures[key] = signaturePads[key].toDataURL();
                     }
                 });
-                exportToPDF();
+                
+                // Tampilkan loading state
+                const originalText = exportBtn.innerHTML;
+                exportBtn.innerHTML = '<span class="loading"></span> Membuat PDF...';
+                exportBtn.disabled = true;
+                
+                exportToPDF().finally(() => {
+                    // Kembalikan ke state normal
+                    exportBtn.innerHTML = originalText;
+                    exportBtn.disabled = false;
+                });
             });
             
             // Fungsi untuk mengumpulkan data form
@@ -803,214 +829,229 @@
                 }, 4000);
             }
             
-            // Fungsi untuk ekspor ke PDF
-            function exportToPDF() {
-                // Tampilkan notifikasi proses
-                showNotification('Membuat PDF...');
-                
-                // Ambil data form
-                const formData = collectFormData();
-                
-                // Buat konten PDF untuk halaman pertama (formulir)
-                let content = `
-                    <div style="display: flex; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
-                        ${formData.logo ? `
-                            <div style="margin-right: 20px;">
-                                <img src="${formData.logo}" style="max-width: 80px; max-height: 80px; object-fit: contain;" alt="Logo Perusahaan">
+            // FUNGSI EKSPOR PDF YANG SUDAH DIPERBAIKI
+            async function exportToPDF() {
+                try {
+                    showNotification('Membuat PDF...');
+                    
+                    const formData = collectFormData();
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    
+                    // Buat konten PDF untuk halaman pertama
+                    let content = `
+                        <div style="display: flex; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 15px;">
+                            ${formData.logo ? `
+                                <div style="margin-right: 20px;">
+                                    <img src="${formData.logo}" style="max-width: 80px; max-height: 80px; object-fit: contain;" alt="Logo Perusahaan">
+                                </div>
+                            ` : ''}
+                            <div style="flex: 1;">
+                                <h1 style="text-align: center; margin: 0; font-size: 18px; color: #2c3e50;">FORMULIR LEADERSHIP ACTIVITY</h1>
                             </div>
-                        ` : ''}
-                        <div style="flex: 1;">
-                            <h1 style="text-align: center; margin: 0; font-size: 18px; color: #2c3e50;">FORMULIR LEADERSHIP ACTIVITY</h1>
-                        </div>
-                    </div>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">ACTIVITY</th>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;" colspan="4">
-                                ${formData.ACTIVITY && formData.ACTIVITY.length > 0 ? 
-                                    formData.ACTIVITY.map(item => `☑ ${item}`).join(' &nbsp;&nbsp;&nbsp; ') : 
-                                    '□ Coaching &nbsp;&nbsp;&nbsp; □ Directing &nbsp;&nbsp;&nbsp; □ Mentoring &nbsp;&nbsp;&nbsp; □ Motivating / Counseling'}
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">Data Karyawan</th>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; width: 20%; color: #000000;">NIK</td>
-                            <td style="border: 1px solid #000; padding: 8px; width: 30%; color: #000000;">${formData.nik || ''}</td>
-                            <td style="border: 1px solid #000; padding: 8px; width: 20%; color: #000000;">Departemen</td>
-                            <td style="border: 1px solid #000; padding: 8px; width: 30%; color: #000000;">${formData.departemen || ''}</td>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">Nama</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.nama || ''}</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">Lokasi Kerja</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.lokasi || ''}</td>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">Jabatan</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.jabatan || ''}</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">Tanggal Masuk</td>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.tanggal_masuk || ''}</td>
-                        </tr>
-                    </table>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">MASALAH</th>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.masalah || ''}</td>
-                        </tr>
-                    </table>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">TINDAK LANJUT / SOLUSI</th>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.tindak_lanjut || ''}</td>
-                        </tr>
-                    </table>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">KOMITMEN</th>
-                        </tr>
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.komitmen || ''}</td>
-                        </tr>
-                    </table>
-                    
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                        <tr>
-                            <td style="border: 1px solid #000; padding: 8px; color: #000000;" colspan="4">
-                                Catatan: ${formData.catatan || ''}
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <!-- Tanda tangan -->
-                    <div style="display: flex; justify-content: space-between; margin-top: 30px;">
-                        <!-- Atasan Langsung -->
-                        <div style="flex: 1; text-align: center; margin: 0 10px;">
-                            <p style="margin-bottom: 5px; font-weight: bold;">Dibuat oleh,</p>
-                            <p style="margin-bottom: 5px;">Atasan Langsung</p>
-                            ${formData.signatures.atasan ? `<img src="${formData.signatures.atasan}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan Atasan">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.atasan_nama || ''}</p>
-                            <p style="margin: 0; font-size: 12px;">${formData.atasan_tgl || ''}</p>
                         </div>
                         
-                        <!-- Karyawan -->
-                        <div style="flex: 1; text-align: center; margin: 0 10px;">
-                            <p style="margin-bottom: 5px; font-weight: bold;">Diterima oleh,</p>
-                            <p style="margin-bottom: 5px;">Karyawan</p>
-                            ${formData.signatures.karyawan ? `<img src="${formData.signatures.karyawan}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan Karyawan">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.karyawan_nama || ''}</p>
-                            <p style="margin: 0; font-size: 12px;">${formData.karyawan_tgl || ''}</p>
-                        </div>
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">ACTIVITY</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;" colspan="4">
+                                    ${formData.ACTIVITY && formData.ACTIVITY.length > 0 ? 
+                                        formData.ACTIVITY.map(item => `☑ ${item}`).join(' &nbsp;&nbsp;&nbsp; ') : 
+                                        '□ Coaching &nbsp;&nbsp;&nbsp; □ Directing &nbsp;&nbsp;&nbsp; □ Mentoring &nbsp;&nbsp;&nbsp; □ Motivating / Counseling'}
+                                </td>
+                            </tr>
+                        </table>
                         
-                        <!-- PJO / Mgr. / GM / Dir. -->
-                        <div style="flex: 1; text-align: center; margin: 0 10px;">
-                            <p style="margin-bottom: 5px; font-weight: bold;">Diketahui oleh,</p>
-                            <p style="margin-bottom: 5px;">PJO / Mgr. / GM / Dir.</p>
-                            ${formData.signatures.pjo ? `<img src="${formData.signatures.pjo}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan PJO">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.pjo_nama || ''}</p>
-                            <p style="margin: 0; font-size: 12px;">${formData.pjo_tgl || ''}</p>
-                        </div>
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">Data Karyawan</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; width: 20%; color: #000000;">NIK</td>
+                                <td style="border: 1px solid #000; padding: 8px; width: 30%; color: #000000;">${formData.nik || ''}</td>
+                                <td style="border: 1px solid #000; padding: 8px; width: 20%; color: #000000;">Departemen</td>
+                                <td style="border: 1px solid #000; padding: 8px; width: 30%; color: #000000;">${formData.departemen || ''}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">Nama</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.nama || ''}</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">Lokasi Kerja</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.lokasi || ''}</td>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">Jabatan</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.jabatan || ''}</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">Tanggal Masuk</td>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;">${formData.tanggal_masuk || ''}</td>
+                            </tr>
+                        </table>
                         
-                        <!-- HCGA -->
-                        <div style="flex: 1; text-align: center; margin: 0 10px;">
-                            <p style="margin-bottom: 5px; font-weight: bold;">HCGA</p>
-                            <p style="margin-bottom: 5px;">Dic / Pic</p>
-                            ${formData.signatures.hcga ? `<img src="${formData.signatures.hcga}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan HCGA">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.hcga_nama || ''}</p>
-                            <p style="margin: 0; font-size: 12px;">${formData.hcga_tgl || ''}</p>
-                        </div>
-                    </div>
-                `;
-                
-                // Set konten ke container PDF halaman pertama
-                pdfContainer.innerHTML = content;
-                pdfContainer.classList.remove('hidden');
-                
-                // Buat konten untuk halaman kedua (foto) jika ada foto
-                let photoContent = '';
-                if (formData.photo) {
-                    photoContent = `
-                        <div style="text-align: center; margin-top: 50px;">
-                            <h2 style="margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">BUKTI PERTEMUAN (FOTO)</h2>
-                            <img src="${formData.photo}" style="max-width: 500px; max-height: 600px; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" alt="Bukti Foto Pertemuan">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">MASALAH</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.masalah || ''}</td>
+                            </tr>
+                        </table>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">TINDAK LANJUT / SOLUSI</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.tindak_lanjut || ''}</td>
+                            </tr>
+                        </table>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <th style="border: 1px solid #000; padding: 8px; background: #e0e0e0; text-align: left; color: #000000;" colspan="4">KOMITMEN</th>
+                            </tr>
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; height: 80px; color: #000000;" colspan="4">${formData.komitmen || ''}</td>
+                            </tr>
+                        </table>
+                        
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                            <tr>
+                                <td style="border: 1px solid #000; padding: 8px; color: #000000;" colspan="4">
+                                    Catatan: ${formData.catatan || ''}
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <!-- Tanda tangan -->
+                        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+                            <!-- Atasan Langsung -->
+                            <div style="flex: 1; text-align: center; margin: 0 10px;">
+                                <p style="margin-bottom: 5px; font-weight: bold;">Dibuat oleh,</p>
+                                <p style="margin-bottom: 5px;">Atasan Langsung</p>
+                                ${formData.signatures.atasan ? `<img src="${formData.signatures.atasan}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan Atasan">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                                <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.atasan_nama || ''}</p>
+                                <p style="margin: 0; font-size: 12px;">${formData.atasan_tgl || ''}</p>
+                            </div>
+                            
+                            <!-- Karyawan -->
+                            <div style="flex: 1; text-align: center; margin: 0 10px;">
+                                <p style="margin-bottom: 5px; font-weight: bold;">Diterima oleh,</p>
+                                <p style="margin-bottom: 5px;">Karyawan</p>
+                                ${formData.signatures.karyawan ? `<img src="${formData.signatures.karyawan}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan Karyawan">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                                <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.karyawan_nama || ''}</p>
+                                <p style="margin: 0; font-size: 12px;">${formData.karyawan_tgl || ''}</p>
+                            </div>
+                            
+                            <!-- PJO / Mgr. / GM / Dir. -->
+                            <div style="flex: 1; text-align: center; margin: 0 10px;">
+                                <p style="margin-bottom: 5px; font-weight: bold;">Diketahui oleh,</p>
+                                <p style="margin-bottom: 5px;">PJO / Mgr. / GM / Dir.</p>
+                                ${formData.signatures.pjo ? `<img src="${formData.signatures.pjo}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan PJO">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                                <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.pjo_nama || ''}</p>
+                                <p style="margin: 0; font-size: 12px;">${formData.pjo_tgl || ''}</p>
+                            </div>
+                            
+                            <!-- HCGA -->
+                            <div style="flex: 1; text-align: center; margin: 0 10px;">
+                                <p style="margin-bottom: 5px; font-weight: bold;">HCGA</p>
+                                <p style="margin-bottom: 5px;">Dic / Pic</p>
+                                ${formData.signatures.hcga ? `<img src="${formData.signatures.hcga}" style="max-width: 150px; max-height: 60px; margin-bottom: 5px;" alt="Tanda Tangan HCGA">` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                                <p style="border-top: 1px solid #000; padding-top: 5px; margin: 0;">${formData.hcga_nama || ''}</p>
+                                <p style="margin: 0; font-size: 12px;">${formData.hcga_tgl || ''}</p>
+                            </div>
                         </div>
                     `;
-                }
-                
-                // Set konten ke container PDF halaman kedua
-                pdfPhotoContainer.innerHTML = photoContent;
-                if (formData.photo) {
-                    pdfPhotoContainer.classList.remove('hidden');
-                }
-                
-                // Konversi halaman pertama ke PDF
-                html2canvas(pdfContainer, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false
-                }).then(canvas1 => {
-                    const imgData1 = canvas1.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    
+                    // Set konten ke container PDF halaman pertama
+                    pdfContainer.innerHTML = content;
+                    pdfContainer.classList.remove('hidden');
+                    
+                    // Konversi halaman pertama ke canvas
+                    const canvas1 = await html2canvas(pdfContainer, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: true
+                    });
+                    
+                    const imgData1 = canvas1.toDataURL('image/jpeg', 0.8); // Gunakan JPEG untuk ukuran lebih kecil
                     const imgWidth = 210;
                     const imgHeight1 = canvas1.height * imgWidth / canvas1.width;
                     
                     // Tambahkan halaman pertama ke PDF
-                    pdf.addImage(imgData1, 'PNG', 0, 0, imgWidth, imgHeight1);
+                    pdf.addImage(imgData1, 'JPEG', 0, 0, imgWidth, imgHeight1);
                     
                     // Sembunyikan container PDF halaman pertama
                     pdfContainer.classList.add('hidden');
                     
                     // Jika ada foto, tambahkan halaman kedua
                     if (formData.photo) {
-                        // Konversi halaman kedua ke PDF
-                        return html2canvas(pdfPhotoContainer, {
+                        // Buat konten untuk halaman kedua (foto)
+                        let photoContent = `
+                            <div style="text-align: center; margin-top: 50px;">
+                                <h2 style="margin-bottom: 30px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">BUKTI PERTEMUAN (FOTO)</h2>
+                                <img src="${formData.photo}" style="max-width: 500px; max-height: 600px; border: 1px solid #ddd; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" alt="Bukti Foto Pertemuan">
+                            </div>
+                        `;
+                        
+                        // Set konten ke container PDF halaman kedua
+                        pdfPhotoContainer.innerHTML = photoContent;
+                        pdfPhotoContainer.classList.remove('hidden');
+                        
+                        // Konversi halaman kedua ke canvas
+                        const canvas2 = await html2canvas(pdfPhotoContainer, {
                             scale: 2,
                             useCORS: true,
-                            logging: false
-                        }).then(canvas2 => {
-                            const imgData2 = canvas2.toDataURL('image/png');
-                            const imgHeight2 = canvas2.height * imgWidth / canvas2.width;
-                            
-                            // Tambahkan halaman kedua ke PDF
-                            pdf.addPage();
-                            pdf.addImage(imgData2, 'PNG', 0, 0, imgWidth, imgHeight2);
-                            
-                            // Sembunyikan container PDF halaman kedua
-                            pdfPhotoContainer.classList.add('hidden');
-                            
-                            // Simpan PDF
-                            const fileName = `Leadership_Activity_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-                            pdf.save(fileName);
-                            
-                            showNotification('PDF berhasil dibuat!');
+                            logging: false,
+                            allowTaint: true
                         });
-                    } else {
-                        // Simpan PDF tanpa foto
-                        const fileName = `Leadership_Activity_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-                        pdf.save(fileName);
                         
-                        showNotification('PDF berhasil dibuat!');
+                        const imgData2 = canvas2.toDataURL('image/jpeg', 0.8);
+                        const imgHeight2 = canvas2.height * imgWidth / canvas2.width;
+                        
+                        // Tambahkan halaman kedua ke PDF
+                        pdf.addPage();
+                        pdf.addImage(imgData2, 'JPEG', 0, 0, imgWidth, imgHeight2);
+                        
+                        // Sembunyikan container PDF halaman kedua
+                        pdfPhotoContainer.classList.add('hidden');
                     }
-                }).catch(error => {
+                    
+                    // Simpan PDF dengan nama file
+                    const fileName = `Leadership_Activity_${formData.nama || 'Karyawan'}_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    
+                    // SOLUSI UTAMA: Gunakan metode yang kompatibel dengan WebView
+                    try {
+                        // Coba metode yang lebih kompatibel
+                        const pdfBlob = pdf.output('blob');
+                        const pdfUrl = URL.createObjectURL(pdfBlob);
+                        
+                        // Buat link download yang kompatibel
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = pdfUrl;
+                        downloadLink.download = fileName;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                        
+                        // Clean up
+                        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+                        
+                    } catch (blobError) {
+                        // Fallback: Gunakan metode langsung jika blob tidak bekerja
+                        pdf.save(fileName);
+                    }
+                    
+                    showNotification('PDF berhasil dibuat!');
+                    
+                } catch (error) {
                     console.error('Error generating PDF:', error);
-                    showNotification('Terjadi kesalahan saat membuat PDF.', 'error');
+                    showNotification('Terjadi kesalahan saat membuat PDF: ' + error.message, 'error');
+                    
+                    // Pastikan container tersembunyi
                     pdfContainer.classList.add('hidden');
                     pdfPhotoContainer.classList.add('hidden');
-                });
+                }
             }
         });
     </script>
